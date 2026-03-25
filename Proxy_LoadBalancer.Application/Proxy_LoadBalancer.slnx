@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/Core/">
+    <Project Path="../Proxy_LoadBalancer.Domain/Proxy_LoadBalancer.Domain.csproj" />
+    <Project Path="Proxy_LoadBalancer.Application.csproj" />
+  </Folder>
+  <Folder Name="/Presentation/">
+    <Project Path="../Proxy_LoadBalancer.API/Proxy_LoadBalancer.API.csproj" />
+  </Folder>
+</Solution>
