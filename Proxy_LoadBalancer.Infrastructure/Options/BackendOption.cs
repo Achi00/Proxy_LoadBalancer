@@ -1,6 +1,6 @@
-﻿namespace Proxy_LoadBalancer.Domain.Entity
+﻿namespace Proxy_LoadBalancer.Infrastructure.Options
 {
-    public class BackendConfig
+    public class BackendOption
     {
         public required string Url { get; set; }
         public int Weight { get; set; } = 1;

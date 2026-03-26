@@ -3,6 +3,9 @@
     <Project Path="../Proxy_LoadBalancer.Domain/Proxy_LoadBalancer.Domain.csproj" />
     <Project Path="Proxy_LoadBalancer.Application.csproj" />
   </Folder>
+  <Folder Name="/Infrastructure/">
+    <Project Path="../Proxy_LoadBalancer.Infrastructure/Proxy_LoadBalancer.Infrastructure.csproj" Id="b470b191-8d70-46ae-8ed4-802178b24d23" />
+  </Folder>
   <Folder Name="/Presentation/">
     <Project Path="../Proxy_LoadBalancer.API/Proxy_LoadBalancer.API.csproj" />
   </Folder>

@@ -1,9 +1,11 @@
-﻿namespace Proxy_LoadBalancer.Domain.Entity
+﻿using Proxy_LoadBalancer.Domain.Enum;
+
+namespace Proxy_LoadBalancer.Infrastructure.Options
 {
-    public class RouteConfig
+    public class RouteOption
     {
         public required string Path { get; set; }
-        public List<BackendConfig> Backends { get; set; } = new();
+        public List<BackendOption> Backends { get; set; } = new();
         public LoadBalancingStrategy LoadBalancing { get; set; } = LoadBalancingStrategy.RoundRobin;
         public string? HealthCheck { get; set; }
     }

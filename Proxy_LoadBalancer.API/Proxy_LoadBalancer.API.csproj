@@ -10,4 +10,8 @@
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Proxy_LoadBalancer.Infrastructure\Proxy_LoadBalancer.Infrastructure.csproj" />
+  </ItemGroup>
+
 </Project>
