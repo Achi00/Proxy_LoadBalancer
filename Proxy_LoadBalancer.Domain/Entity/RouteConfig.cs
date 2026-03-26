@@ -2,7 +2,9 @@
 {
     public class RouteConfig
     {
-        public string Path { get; set; }
-        public List<string> Destinations { get; set; }
+        public required string Path { get; set; }
+        public List<BackendConfig> Backends { get; set; } = new();
+        public LoadBalancingStrategy LoadBalancing { get; set; } = LoadBalancingStrategy.RoundRobin;
+        public string? HealthCheck { get; set; }
     }
 }
