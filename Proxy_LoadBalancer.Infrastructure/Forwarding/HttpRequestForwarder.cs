@@ -67,6 +67,8 @@ namespace Proxy_LoadBalancer.Infrastructure.Forwarding
 
                 if 
                 (
+                    // in case if content type includes anything other than  bare media type, otherwise will throw
+                    // fixed by introducing MediaTypeHeaderValue.TryParse, return result.MediaType & result.CharSet
                     !string.IsNullOrEmpty(request.ContentType) && 
                     MediaTypeHeaderValue.TryParse(request.ContentType, out var mediaType)
                 )
