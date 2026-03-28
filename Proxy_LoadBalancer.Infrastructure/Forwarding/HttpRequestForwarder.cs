@@ -2,7 +2,7 @@
 using Microsoft.Extensions.Options;
 using Proxy_LoadBalancer.Application.Interfaces;
 using Proxy_LoadBalancer.Infrastructure.Options;
-using System.Web;
+using System.Net.Http.Headers;
 
 namespace Proxy_LoadBalancer.Infrastructure.Forwarding
 {
@@ -20,46 +20,117 @@ namespace Proxy_LoadBalancer.Infrastructure.Forwarding
         }
         public Task ForwardAsync(HttpContext context, string targetUrl, CancellationToken ct)
         {
-            var FullUrl = GetDestinationAddress(context);
+            var FullUrl = BuildDestinationUri(context);
 
             var req = CreateForwardRequest(context, FullUrl);
+
+            return Task.CompletedTask;
         }
 
-        private string GetDestinationAddress(HttpContext context)
+        private Uri BuildDestinationUri(HttpContext context)
         {
-            // build target url
-            UriBuilder url = new UriBuilder(_destinationOptions.Address);
-            url.Path = context.Request.Path;
+            var baseUri = new Uri(_destinationOptions.Address);
 
-            // add queries
-            var query = HttpUtility.ParseQueryString(url.Query);
-            foreach (var q in context.Request.Query)
+            // remove route prefix (/api/orders -> /orders)
+            var path = context.Request.Path.Value!;
+            // TODO: this should come from route config
+            var prefix = "/api/orders"; 
+
+            if (path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
             {
-                query[q.Key] = q.Value;
+                path = path.Substring(prefix.Length);
             }
 
-            url.Query = query.ToString();
+            var builder = new UriBuilder(baseUri)
+            {
+                Path = path,
+                Query = context.Request.QueryString.HasValue
+                    ? context.Request.QueryString.Value
+                    : string.Empty
+            };
 
-            return url.ToString();
+            return builder.Uri;
         }
 
-        private HttpRequestMessage CreateForwardRequest(HttpContext context, string targetUrl)
+        private HttpRequestMessage CreateForwardRequest(HttpContext context, Uri destinationUri)
         {
             var request = context.Request;
-            var forwardRequest = new HttpRequestMessage(new HttpMethod(request.Method), targetUrl);
 
-            HeaderSanitizer.SanitizeRequestHeaders(forwardRequest, context.Request);
-            // copy body if exists
-            if (request.ContentLength > 0)
+            var forwardRequest = new HttpRequestMessage(
+                new HttpMethod(request.Method),
+                destinationUri);
+
+            // create content first (important for content headers), also covere if send as chunks, no length that case
+            if (request.ContentLength > 0 || request.Headers.ContainsKey("Transfer-Encoding"))
             {
                 forwardRequest.Content = new StreamContent(request.Body);
-                // copy content type
-                if (!string.IsNullOrEmpty(request.ContentType))
+
+                if 
+                (
+                    !string.IsNullOrEmpty(request.ContentType) && 
+                    MediaTypeHeaderValue.TryParse(request.ContentType, out var mediaType)
+                )
                 {
-                    forwardRequest.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(request.ContentType);
+                    forwardRequest.Content.Headers.ContentType = mediaType;
                 }
             }
+
+            var connectionTokens = GetConnectionHeaderTokens(request);
+
+            // copy headers
+            foreach (var header in request.Headers)
+            {
+                if (connectionTokens.Contains(header.Key))
+                {
+                    continue;
+                }
+                // skip invalid headers
+                if (!HeaderSanitizer.ShouldForward(header.Key))
+                {
+                    continue;
+                }
+
+                // content headers -> go to Content.Headers
+                if (HeaderSanitizer.ContentHeaders.Contains(header.Key))
+                {
+                    if (forwardRequest.Content != null)
+                    {
+                        forwardRequest.Content.Headers.TryAddWithoutValidation(
+                            header.Key, header.Value.ToArray());
+                    }
+                }
+                else
+                {
+                    forwardRequest.Headers.TryAddWithoutValidation(
+                        header.Key, header.Value.ToArray());
+                }
+            }
+
+            // apply forwarding headers (X-Forwarded-*)
+            ForwardingHeadersBuilder.Apply(forwardRequest, request, destinationUri);
+
+            // Set correct HOST (critical)
+            forwardRequest.Headers.Host = destinationUri.Authority;
+
             return forwardRequest;
+        }
+
+        private HashSet<string> GetConnectionHeaderTokens(HttpRequest request)
+        {
+            var tokens = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            if (request.Headers.TryGetValue("Connection", out var values))
+            {
+                foreach (var value in values)
+                {
+                    foreach (var token in value.Split(','))
+                    {
+                        tokens.Add(token.Trim());
+                    }
+                }
+            }
+
+            return tokens;
         }
     }
 }
