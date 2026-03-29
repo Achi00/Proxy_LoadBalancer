@@ -4,27 +4,32 @@ using Proxy_LoadBalancer.Application.Interfaces;
 using Proxy_LoadBalancer.Infrastructure.Options;
 using System.Net.Http.Headers;
 
-namespace Proxy_LoadBalancer.Infrastructure.Forwarding
+namespace Proxy_LoadBalancer.Infrastructure.Forwarding.HttpForwarders
 {
     public class HttpRequestForwarder : IRequestForwarder
     {
         private readonly DestinationOption _destinationOptions;
-        private readonly ProxyOption _proxyOptions;
+        private readonly IHttpClientFactory _factory;
 
         public HttpRequestForwarder(
             IOptions<DestinationOption> destinationOptions,
-            IOptions<ProxyOption> proxyOptions)
+            IHttpClientFactory factory)
         {
             _destinationOptions = destinationOptions.Value;
-            _proxyOptions = proxyOptions.Value;
+            _factory = factory;
         }
-        public Task ForwardAsync(HttpContext context, string targetUrl, CancellationToken ct)
+        public async Task<HttpResponseMessage> ForwardAsync(HttpContext context, string targetUrl, CancellationToken ct)
         {
+            // build destination url
             var FullUrl = BuildDestinationUri(context);
 
+            // outgoing request
             var req = CreateForwardRequest(context, FullUrl);
 
-            return Task.CompletedTask;
+            // forward http request to destination
+            var client = _factory.CreateClient();
+
+            return await client.SendAsync(req, ct);
         }
 
         private Uri BuildDestinationUri(HttpContext context)
@@ -63,6 +68,7 @@ namespace Proxy_LoadBalancer.Infrastructure.Forwarding
             // create content first (important for content headers), also covere if send as chunks, no length that case
             if (request.ContentLength > 0 || request.Headers.ContainsKey("Transfer-Encoding"))
             {
+                // stream content
                 forwardRequest.Content = new StreamContent(request.Body);
 
                 if 
@@ -111,7 +117,7 @@ namespace Proxy_LoadBalancer.Infrastructure.Forwarding
             // apply forwarding headers (X-Forwarded-*)
             ForwardingHeadersBuilder.Apply(forwardRequest, request, destinationUri);
 
-            // Set correct HOST (critical)
+            // set correct HOST (critical), dont use proxy host by mistake!!!
             forwardRequest.Headers.Host = destinationUri.Authority;
 
             return forwardRequest;
