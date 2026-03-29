@@ -1,20 +1,10 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Primitives;
-using Proxy_LoadBalancer.Infrastructure.Options;
-using System.ComponentModel.DataAnnotations;
 
 namespace Proxy_LoadBalancer.Infrastructure.Forwarding.HttpForwarders
 {
     public class HttpResponseForwarder
     {
-        private readonly DestinationOption _destinationOptions;
-        private readonly IHttpClientFactory _factory;
-
-        public HttpResponseForwarder(IHttpClientFactory factory)
-        {
-            _factory = factory;
-        }
-
         public async Task ForwardAsync(HttpContext context, HttpResponseMessage response, CancellationToken ct = default)
         {
             context.Response.StatusCode = (int)response.StatusCode;
@@ -44,6 +34,7 @@ namespace Proxy_LoadBalancer.Infrastructure.Forwarding.HttpForwarders
             {
                 await response.Content.CopyToAsync(context.Response.Body, ct);
             }
+            await context.Response.Body.FlushAsync(ct);
         }
     }
 }
