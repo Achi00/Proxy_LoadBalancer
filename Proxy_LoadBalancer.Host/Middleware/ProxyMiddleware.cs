@@ -16,6 +16,9 @@ namespace Proxy_LoadBalancer.Host.Middleware
             _requestForwarder = requestForwarder;
         }
 
+        /*
+         *  TODO: make proxy error logs saveable in file
+         */
         public async Task InvokeAsync(HttpContext context, CancellationToken ct = default)
         {
             var resolvedRoute = _routeResolver.Resolve(context);

@@ -1,12 +1,11 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
-using Proxy_LoadBalancer.Application.Interfaces;
 using Proxy_LoadBalancer.Infrastructure.Options;
 using System.Net.Http.Headers;
 
 namespace Proxy_LoadBalancer.Infrastructure.Forwarding.HttpForwarders
 {
-    public class HttpRequestForwarder : IRequestForwarder
+    public class HttpRequestForwarder
     {
         private readonly DestinationOption _destinationOptions;
         private readonly IHttpClientFactory _factory;
