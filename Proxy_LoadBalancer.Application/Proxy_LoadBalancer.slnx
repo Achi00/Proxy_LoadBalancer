@@ -7,6 +7,6 @@
     <Project Path="../Proxy_LoadBalancer.Infrastructure/Proxy_LoadBalancer.Infrastructure.csproj" Id="b470b191-8d70-46ae-8ed4-802178b24d23" />
   </Folder>
   <Folder Name="/Presentation/">
-    <Project Path="../Proxy_LoadBalancer.API/Proxy_LoadBalancer.API.csproj" />
+    <Project Path="../Proxy_LoadBalancer.Host/Proxy_LoadBalancer.Host.csproj" Id="846cbc0a-9e11-4e0c-96ce-8fd1d032ff72" />
   </Folder>
 </Solution>
