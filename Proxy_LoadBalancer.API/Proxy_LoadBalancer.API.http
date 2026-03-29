@@ -1,6 +1,0 @@
-@Proxy_LoadBalancer.API_HostAddress = http://localhost:5161
-
-GET {{Proxy_LoadBalancer.API_HostAddress}}/weatherforecast/
-Accept: application/json
-
-###
