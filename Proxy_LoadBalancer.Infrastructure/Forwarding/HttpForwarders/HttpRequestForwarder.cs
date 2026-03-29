@@ -18,7 +18,7 @@ namespace Proxy_LoadBalancer.Infrastructure.Forwarding.HttpForwarders
             _destinationOptions = destinationOptions.Value;
             _factory = factory;
         }
-        public async Task<HttpResponseMessage> ForwardAsync(HttpContext context, string targetUrl, CancellationToken ct)
+        public async Task<HttpResponseMessage> ForwardAsync(HttpContext context, CancellationToken ct)
         {
             // build destination url
             var FullUrl = BuildDestinationUri(context);
