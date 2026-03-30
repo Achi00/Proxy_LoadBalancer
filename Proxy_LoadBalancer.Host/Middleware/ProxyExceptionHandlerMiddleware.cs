@@ -19,6 +19,7 @@
             {
                 await _next(context);
             }
+            // if client disconnects and upstream also throws TaskCanceledException
             catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
             {
                 // client disconnected or operation canceled while executing, not logging as error

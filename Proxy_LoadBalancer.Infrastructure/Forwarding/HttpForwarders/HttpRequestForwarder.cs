@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
 using Proxy_LoadBalancer.Infrastructure.Options;
+using Proxy_LoadBalancer.Infrastructure.Routing;
 using System.Net.Http.Headers;
 
 namespace Proxy_LoadBalancer.Infrastructure.Forwarding.HttpForwarders
@@ -8,19 +9,22 @@ namespace Proxy_LoadBalancer.Infrastructure.Forwarding.HttpForwarders
     public class HttpRequestForwarder
     {
         private readonly DestinationOption _destinationOptions;
+        private readonly RouteOption _routeOptions;
         private readonly IHttpClientFactory _factory;
 
         public HttpRequestForwarder(
             IOptions<DestinationOption> destinationOptions,
+            IOptions<RouteOption> routeOptions,
             IHttpClientFactory factory)
         {
             _destinationOptions = destinationOptions.Value;
+            _routeOptions = routeOptions.Value;
             _factory = factory;
         }
-        public async Task<HttpResponseMessage> ForwardAsync(HttpContext context, CancellationToken ct)
+        public async Task<HttpResponseMessage> ForwardAsync(HttpContext context, ResolvedRoute resolvedRoute, CancellationToken ct)
         {
             // build destination url
-            var FullUrl = BuildDestinationUri(context);
+            var FullUrl = BuildDestinationUri(context, resolvedRoute);
 
             // outgoing request
             var req = CreateForwardRequest(context, FullUrl);
@@ -31,15 +35,15 @@ namespace Proxy_LoadBalancer.Infrastructure.Forwarding.HttpForwarders
             return await client.SendAsync(req, ct);
         }
 
-        private Uri BuildDestinationUri(HttpContext context)
+        private Uri BuildDestinationUri(HttpContext context, ResolvedRoute resolvedRoute)
         {
-            var baseUri = new Uri(_destinationOptions.Address);
+            var baseUri = new Uri(resolvedRoute.Cluster.Destinations.First().Address);
 
-            // remove route prefix (/api/orders -> /orders)
             var path = context.Request.Path.Value!;
-            // TODO: this should come from route config
-            var prefix = "/api/orders"; 
+            // get prefix from resolved route's match config
+            var prefix = resolvedRoute.Route.Match.Path;
 
+            // remove match route prefix
             if (path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
             {
                 path = path.Substring(prefix.Length);

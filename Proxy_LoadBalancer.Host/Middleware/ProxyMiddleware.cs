@@ -19,8 +19,12 @@ namespace Proxy_LoadBalancer.Host.Middleware
         /*
          *  TODO: make proxy error logs saveable in file
          */
-        public async Task InvokeAsync(HttpContext context, CancellationToken ct = default)
+        public async Task InvokeAsync(HttpContext context)
         {
+            // tied to client connection
+            var ct = context.RequestAborted;
+            
+            // resolve route
             var resolvedRoute = _routeResolver.Resolve(context);
 
             if (resolvedRoute == null)
@@ -32,11 +36,11 @@ namespace Proxy_LoadBalancer.Host.Middleware
 
             // TODO: load balancer
 
-            // forward request
-            var req = await _requestForwarder.ForwardAsync(context, ct);
+            // forward request with resolved route
+            var response = await _requestForwarder.ForwardAsync(context, resolvedRoute, ct);
 
             // forward response
-            await _responseForwarder.ForwardAsync(context, req, ct);
+            await _responseForwarder.ForwardAsync(context, response, ct);
         }
     }
 }
