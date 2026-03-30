@@ -3,7 +3,7 @@ using Proxy_LoadBalancer.Infrastructure.Routing;
 
 namespace Proxy_LoadBalancer.Host.Middleware
 {
-    public class ProxyMiddleware
+    public class ProxyMiddleware : IMiddleware
     {
         private readonly ConfigRouteResolver _routeResolver;
         private readonly HttpRequestForwarder _requestForwarder;
@@ -19,7 +19,7 @@ namespace Proxy_LoadBalancer.Host.Middleware
         /*
          *  TODO: make proxy error logs saveable in file
          */
-        public async Task InvokeAsync(HttpContext context)
+        public async Task InvokeAsync(HttpContext context, RequestDelegate next)
         {
             // tied to client connection
             var ct = context.RequestAborted;
