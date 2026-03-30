@@ -1,6 +1,4 @@
 ﻿using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Options;
-using Proxy_LoadBalancer.Infrastructure.Options;
 using Proxy_LoadBalancer.Infrastructure.Routing;
 using System.Net.Http.Headers;
 
@@ -8,17 +6,10 @@ namespace Proxy_LoadBalancer.Infrastructure.Forwarding.HttpForwarders
 {
     public class HttpRequestForwarder
     {
-        private readonly DestinationOption _destinationOptions;
-        private readonly RouteOption _routeOptions;
         private readonly IHttpClientFactory _factory;
 
-        public HttpRequestForwarder(
-            IOptions<DestinationOption> destinationOptions,
-            IOptions<RouteOption> routeOptions,
-            IHttpClientFactory factory)
+        public HttpRequestForwarder(IHttpClientFactory factory)
         {
-            _destinationOptions = destinationOptions.Value;
-            _routeOptions = routeOptions.Value;
             _factory = factory;
         }
         public async Task<HttpResponseMessage> ForwardAsync(HttpContext context, ResolvedRoute resolvedRoute, CancellationToken ct)
@@ -29,10 +20,12 @@ namespace Proxy_LoadBalancer.Infrastructure.Forwarding.HttpForwarders
             // outgoing request
             var req = CreateForwardRequest(context, FullUrl);
 
+            // create named cleint which is already registered
             // forward http request to destination
-            var client = _factory.CreateClient();
+            var client = _factory.CreateClient("proxy");
 
-            return await client.SendAsync(req, ct);
+            // lazy body stream
+            return await client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
         }
 
         private Uri BuildDestinationUri(HttpContext context, ResolvedRoute resolvedRoute)
@@ -69,7 +62,7 @@ namespace Proxy_LoadBalancer.Infrastructure.Forwarding.HttpForwarders
                 destinationUri);
 
             // create content first (important for content headers), also covere if send as chunks, no length that case
-            if (request.ContentLength > 0 || request.Headers.ContainsKey("Transfer-Encoding"))
+            if (request.ContentLength > 0 || request.ContentLength == null && request.Body.CanRead || request.Headers.ContainsKey("Transfer-Encoding"))
             {
                 // stream content
                 forwardRequest.Content = new StreamContent(request.Body);

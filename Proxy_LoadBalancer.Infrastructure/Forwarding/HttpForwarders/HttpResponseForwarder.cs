@@ -18,22 +18,17 @@ namespace Proxy_LoadBalancer.Infrastructure.Forwarding.HttpForwarders
                 }
             }
             // filter out hop-by-hop response content headers (Content-Type, Content-Length, ect...)
-            if (response.Content.Headers != null)
+            foreach (var kvp in response.Content.Headers)
             {
-                foreach (var kvp in response.Content.Headers)
+                if (!HeaderSanitizer.HopByHop.Contains(kvp.Key))
                 {
-                    if (!HeaderSanitizer.HopByHop.Contains(kvp.Key))
-                    {
-                        context.Response.Headers.Add(kvp.Key, new StringValues(kvp.Value.ToArray()));
-                    }
+                    context.Response.Headers.Add(kvp.Key, new StringValues(kvp.Value.ToArray()));
                 }
             }
 
             // body stream
-            if (response.Content != null)
-            {
-                await response.Content.CopyToAsync(context.Response.Body, ct);
-            }
+            await response.Content.CopyToAsync(context.Response.Body, ct);
+            
             await context.Response.Body.FlushAsync(ct);
         }
     }
