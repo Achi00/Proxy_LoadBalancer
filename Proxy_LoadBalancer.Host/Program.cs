@@ -8,13 +8,9 @@ builder.Services.AddHttpClient();
 builder.Services.AddProxyConfig(builder.Configuration);
 
 // TODO: (GET, HEAD) automatically, never blindly retry POST
-builder.Services.AddHttpClient("proxy", client =>
-{
-    client.Timeout = TimeSpan.FromSeconds(30);
-}).AddTransientHttpErrorPolicy(policy =>
-    policy.WaitAndRetryAsync(2, attempt => TimeSpan.FromMilliseconds(200 * attempt))
-);
-
+builder.Services
+    .AddHttpClient("proxy")
+    .AddProxyResiliencePolicy(perAttemptTimeoutSeconds: 10, absoluteTimeoutSeconds: 25);
 
 var app = builder.Build();
 

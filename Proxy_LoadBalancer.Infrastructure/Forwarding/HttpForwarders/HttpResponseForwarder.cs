@@ -27,8 +27,10 @@ namespace Proxy_LoadBalancer.Infrastructure.Forwarding.HttpForwarders
             }
 
             // body stream
-            await response.Content.CopyToAsync(context.Response.Body, ct);
-            
+            await using var responseStream = await response.Content.ReadAsStreamAsync(ct);
+
+            //await responseStream.CopyToAsync(context.Response.BodyWriter, ct);
+
             await context.Response.Body.FlushAsync(ct);
         }
     }
