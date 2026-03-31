@@ -32,25 +32,33 @@ namespace Proxy_LoadBalancer.Infrastructure.Forwarding.HttpForwarders
         {
             var baseUri = new Uri(resolvedRoute.Cluster.Destinations.First().Address);
 
-            var path = context.Request.Path.Value!;
-            // get prefix from resolved route's match config
-            var prefix = resolvedRoute.Route.Match.Path;
+            var path = context.Request.Path.Value ?? "";
+            var query = context.Request.QueryString.Value ?? "";
 
-            // remove match route prefix
-            if (path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            var transform = resolvedRoute.Route.Transform;
+
+            // check if prefix remove is set explicitly in config
+            if (transform?.RemovePrefix == true)
             {
-                path = path.Substring(prefix.Length);
+                var prefix = resolvedRoute.Route.Match.Path;
+
+                if (path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                {
+                    path = path.Substring(prefix.Length);
+
+                    if (!path.StartsWith("/"))
+                        path = "/" + path;
+                }
             }
 
-            var builder = new UriBuilder(baseUri)
+            if (!string.IsNullOrEmpty(transform?.AddPrefix))
             {
-                Path = path,
-                Query = context.Request.QueryString.HasValue
-                    ? context.Request.QueryString.Value
-                    : string.Empty
-            };
+                path = transform.AddPrefix.TrimEnd('/') + "/" + path.TrimStart('/');
+            }
 
-            return builder.Uri;
+            var finalUri = new Uri(baseUri, path + query);
+            
+            return finalUri;
         }
 
         private HttpRequestMessage CreateForwardRequest(HttpContext context, Uri destinationUri)

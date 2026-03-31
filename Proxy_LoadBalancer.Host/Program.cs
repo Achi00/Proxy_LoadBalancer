@@ -9,6 +9,13 @@ builder.Services.AddProxyConfig(builder.Configuration);
 
 builder.Services
     .AddHttpClient("proxy")
+    // TODO: for localhost testing
+    .ConfigurePrimaryHttpMessageHandler(() =>
+       new HttpClientHandler
+       {
+           ServerCertificateCustomValidationCallback =
+               HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+       })
     .AddProxyResiliencePolicy(perAttemptTimeoutSeconds: 10, absoluteTimeoutSeconds: 25);
 
 builder.Services.AddSingleton<ProxyMiddleware>();
