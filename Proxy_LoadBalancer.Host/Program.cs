@@ -10,18 +10,19 @@ builder.Services.AddProxyConfig(builder.Configuration);
 builder.Services
     .AddHttpClient("proxy")
     // TODO: for localhost testing
-    .ConfigurePrimaryHttpMessageHandler(() =>
-       new HttpClientHandler
-       {
-           ServerCertificateCustomValidationCallback =
-               HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
-       })
+    //.ConfigurePrimaryHttpMessageHandler(() =>
+    //   new HttpClientHandler
+    //   {
+    //       ServerCertificateCustomValidationCallback =
+    //           HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+    //   })
     .AddProxyResiliencePolicy(perAttemptTimeoutSeconds: 10, absoluteTimeoutSeconds: 25);
 
 builder.Services.AddSingleton<ProxyMiddleware>();
 builder.Services.AddSingleton<ConfigRouteResolver>();
 builder.Services.AddSingleton<HttpRequestForwarder>();
 builder.Services.AddSingleton<HttpResponseForwarder>();
+
 
 var app = builder.Build();
 
