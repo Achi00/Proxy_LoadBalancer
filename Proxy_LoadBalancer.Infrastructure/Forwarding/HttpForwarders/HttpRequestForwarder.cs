@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Http;
+using Proxy_LoadBalancer.Infrastructure.Health;
 using Proxy_LoadBalancer.Infrastructure.Routing;
 using System.Net.Http.Headers;
 
@@ -7,13 +8,16 @@ namespace Proxy_LoadBalancer.Infrastructure.Forwarding.HttpForwarders
     public class HttpRequestForwarder
     {
         private readonly IHttpClientFactory _factory;
+        private readonly PassiveHealthTracker _healthTracker;
 
-        public HttpRequestForwarder(IHttpClientFactory factory)
+        public HttpRequestForwarder(IHttpClientFactory factory, PassiveHealthTracker healthTracker)
         {
             _factory = factory;
+            _healthTracker = healthTracker;
         }
         public async Task<HttpResponseMessage> ForwardAsync(HttpContext context, ResolvedRoute resolvedRoute, CancellationToken ct)
         {
+            var destination = resolvedRoute.Cluster.Destinations.First();
             // build destination url
             var FullUrl = BuildDestinationUri(context, resolvedRoute);
 
@@ -24,8 +28,28 @@ namespace Proxy_LoadBalancer.Infrastructure.Forwarding.HttpForwarders
             // forward http request to destination
             var client = _factory.CreateClient("proxy");
 
-            // lazy body stream
-            return await client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
+            // health check
+            try
+            {
+                var res = await client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
+                if ((int)res.StatusCode >= 500)
+                {
+                    _healthTracker.RecordFailure(destination.Address);
+                }
+                else
+                {
+                    _healthTracker.RecordSuccess(destination.Address);
+                }
+
+                return res;
+            }
+            catch (HttpRequestException)
+            {
+                // track failure
+                _healthTracker.RecordFailure(destination.Address);
+                // middleware handles rest
+                throw;
+            }
         }
 
         private Uri BuildDestinationUri(HttpContext context, ResolvedRoute resolvedRoute)
