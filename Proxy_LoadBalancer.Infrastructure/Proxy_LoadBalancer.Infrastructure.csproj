@@ -17,4 +17,8 @@
     <ProjectReference Include="..\Proxy_LoadBalancer.Domain\Proxy_LoadBalancer.Domain.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="LoadBalancer\Policies\" />
+  </ItemGroup>
+
 </Project>
