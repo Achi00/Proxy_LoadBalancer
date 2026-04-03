@@ -28,7 +28,9 @@ namespace Proxy_LoadBalancer.Infrastructure.Forwarding.HttpForwarders
             // forward http request to destination
             var client = _factory.CreateClient("proxy");
 
-            // health check
+            Console.WriteLine($"{destination.Address} health state is: {_healthTracker.IsHealthy(destination.Address)}");
+            // with health check
+            // 3 failures, servuce is tracked as unhealthy
             try
             {
                 var res = await client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
