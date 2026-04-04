@@ -19,17 +19,14 @@ namespace Proxy_LoadBalancer.Infrastructure.LoadBalancer
 
             if (healthy.Count == 0)
             {
-                throw new InvalidOperationException(
-                    $"No healthy destinations available for cluster {cluster.Id}");
+                throw new InvalidOperationException($"No healthy destinations available for cluster {cluster.Id}");
             }
 
             // creates strategy per cluster
-            if (!_strategies.ContainsKey(cluster.Id))
-            {
-                _strategies[cluster.Id] = new RoundRobinStrategy<DestinationOption>();
-            }
-            // pass healthy services only
-            return _strategies[cluster.Id].GetNext(healthy);
+            var strategy = _strategies.GetOrAdd(cluster.Id, _ => new RoundRobinStrategy<DestinationOption>());
+            
+            // passing healthy services only
+            return strategy.GetNext(healthy);
         }
     }
 }

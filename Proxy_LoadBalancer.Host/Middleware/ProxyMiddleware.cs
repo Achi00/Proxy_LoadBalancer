@@ -1,4 +1,6 @@
 ﻿using Proxy_LoadBalancer.Infrastructure.Forwarding.HttpForwarders;
+using Proxy_LoadBalancer.Infrastructure.Health;
+using Proxy_LoadBalancer.Infrastructure.LoadBalancer;
 using Proxy_LoadBalancer.Infrastructure.Routing;
 
 namespace Proxy_LoadBalancer.Host.Middleware
@@ -8,12 +10,15 @@ namespace Proxy_LoadBalancer.Host.Middleware
         private readonly ConfigRouteResolver _routeResolver;
         private readonly HttpRequestForwarder _requestForwarder;
         private readonly HttpResponseForwarder _responseForwarder;
+        private readonly ILoadBalancer _loadBalancer;
+        private readonly PassiveHealthTracker _healthTracker;
 
-        public ProxyMiddleware(ConfigRouteResolver routeResolver, HttpRequestForwarder requestForwarder, HttpResponseForwarder responseForwarder)
+        public ProxyMiddleware(ConfigRouteResolver routeResolver, HttpRequestForwarder requestForwarder, HttpResponseForwarder responseForwarder, ILoadBalancer loadBalancer)
         {
             _routeResolver = routeResolver;
             _responseForwarder = responseForwarder;
             _requestForwarder = requestForwarder;
+            _loadBalancer = loadBalancer;
         }
 
         /*
@@ -34,10 +39,15 @@ namespace Proxy_LoadBalancer.Host.Middleware
                 return;
             }
 
-            // TODO: load balancer
-
+            // load balancer
+            var destination = _loadBalancer.SelectDestination(resolvedRoute.Cluster, _healthTracker);
+            if (destination is null) 
+            { 
+                context.Response.StatusCode = 503; 
+                return; 
+            }
             // forward request with resolved route
-            var response = await _requestForwarder.ForwardAsync(context, resolvedRoute, ct);
+            var response = await _requestForwarder.ForwardAsync(context, resolvedRoute, destination, ct);
 
             // forward response
             await _responseForwarder.ForwardAsync(context, response, ct);

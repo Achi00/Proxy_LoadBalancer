@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Proxy_LoadBalancer.Infrastructure.Health;
+using Proxy_LoadBalancer.Infrastructure.Options;
 using Proxy_LoadBalancer.Infrastructure.Routing;
 using System.Net.Http.Headers;
 
@@ -15,10 +16,9 @@ namespace Proxy_LoadBalancer.Infrastructure.Forwarding.HttpForwarders
             _factory = factory;
             _healthTracker = healthTracker;
         }
-        public async Task<HttpResponseMessage> ForwardAsync(HttpContext context, ResolvedRoute resolvedRoute, CancellationToken ct)
+        public async Task<HttpResponseMessage> ForwardAsync(HttpContext context, ResolvedRoute resolvedRoute, DestinationOption destination, CancellationToken ct)
         {
-            // already filtered routes
-            var destination = resolvedRoute.Cluster.Destinations.First();
+            // already filtered routes, getting destination after health check and load balancer
             // build destination url
             var FullUrl = BuildDestinationUri(context, resolvedRoute);
 
