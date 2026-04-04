@@ -31,7 +31,7 @@ namespace Proxy_LoadBalancer.Infrastructure.Forwarding.HttpForwarders
 
             Console.WriteLine($"{destination.Address} health state is: {_healthTracker.IsHealthy(destination.Address)}");
             // with health check
-            // 3 failures, servuce is tracked as unhealthy
+            // 3 failures, service is tracked as unhealthy
             try
             {
                 var res = await client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
