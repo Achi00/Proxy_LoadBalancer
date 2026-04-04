@@ -1,4 +1,5 @@
-﻿using Proxy_LoadBalancer.Infrastructure.Options;
+﻿using Proxy_LoadBalancer.Infrastructure.LoadBalancer;
+using Proxy_LoadBalancer.Infrastructure.Options;
 
 namespace Proxy_LoadBalancer.Host.Infrastructure.Extensions
 {
@@ -28,6 +29,8 @@ namespace Proxy_LoadBalancer.Host.Infrastructure.Extensions
                     return true;
                 }, "One or more cluster destinations have an invalid or non-http/https URI.")
                 .ValidateOnStart();
+
+            services.AddSingleton<ILoadBalancer, LoadBalancerService>();
 
             return services;
         }

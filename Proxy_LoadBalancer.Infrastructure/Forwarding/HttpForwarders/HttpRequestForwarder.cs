@@ -17,6 +17,7 @@ namespace Proxy_LoadBalancer.Infrastructure.Forwarding.HttpForwarders
         }
         public async Task<HttpResponseMessage> ForwardAsync(HttpContext context, ResolvedRoute resolvedRoute, CancellationToken ct)
         {
+            // already filtered routes
             var destination = resolvedRoute.Cluster.Destinations.First();
             // build destination url
             var FullUrl = BuildDestinationUri(context, resolvedRoute);
