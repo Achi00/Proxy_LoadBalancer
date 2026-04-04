@@ -38,6 +38,10 @@
                 _logger.LogWarning(ex, "Upstream timed out: {Method} {Path}", context.Request.Method, context.Request.Path);
                 await TryWriteErrorAsync(context, 504, "Gateway Timeout");
             }
+            catch (InvalidOperationException ex) when (ex.Message.Contains("No healthy"))
+            {
+                context.Response.StatusCode = 503;
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Unhandled proxy error: {Method} {Path}", context.Request.Method, context.Request.Path);
@@ -52,7 +56,7 @@
                 // if headers already sent we can't change the status code, ASP.NET already flushed headers
                 // abort the connection so the client
                 // knows something went wrong rather than getting a truncated body
-                // similar "Immediate Abort" Mechanism as Microsoft YARP
+                // similar "Immediate Abort" Mechanism as Microsoft YARP, simplified..
                 context.Abort();
                 return;
             }

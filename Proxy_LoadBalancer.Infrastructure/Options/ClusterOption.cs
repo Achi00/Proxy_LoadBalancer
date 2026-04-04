@@ -2,7 +2,8 @@
 {
     public class ClusterOption
     {
+        public string Id { get; set; }
         public string LoadBalancing { get; set; }
-        public List<DestinationOption> Destinations { get; set; }
+        public List<DestinationOption> Destinations { get; set; } = new();
     }
 }

@@ -1,4 +1,5 @@
-﻿using Proxy_LoadBalancer.Infrastructure.Options;
+﻿using Proxy_LoadBalancer.Infrastructure.LoadBalancer;
+using Proxy_LoadBalancer.Infrastructure.Options;
 
 namespace Proxy_LoadBalancer.Host.Infrastructure.Extensions
 {
@@ -9,6 +10,13 @@ namespace Proxy_LoadBalancer.Host.Infrastructure.Extensions
             // checking mismatch on startup so it blows before http request
             services.AddOptions<ProxyOption>()
                 .Bind(configuration.GetSection("Proxy"))
+                .PostConfigure(options =>
+                {
+                    foreach (var (key, cluster) in options.Clusters)
+                    {
+                        cluster.Id = key;
+                    }
+                })
                 .Validate(options =>
                 {
                     foreach (var cluster in options.Clusters.Values)
@@ -28,6 +36,8 @@ namespace Proxy_LoadBalancer.Host.Infrastructure.Extensions
                     return true;
                 }, "One or more cluster destinations have an invalid or non-http/https URI.")
                 .ValidateOnStart();
+
+            services.AddSingleton<ILoadBalancer, LoadBalancerService>();
 
             return services;
         }

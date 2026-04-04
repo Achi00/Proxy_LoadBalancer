@@ -8,7 +8,7 @@ namespace Proxy_LoadBalancer.Infrastructure.Health
         private readonly int _failureThreshold;
         private readonly TimeSpan _cooldown;
 
-        public PassiveHealthTracker(int failureThreshold = 3, TimeSpan? cooldown = null)
+        public PassiveHealthTracker(int failureThreshold = 1, TimeSpan? cooldown = null)
         {
             _failureThreshold = failureThreshold;
             _cooldown = cooldown ?? TimeSpan.FromSeconds(30);

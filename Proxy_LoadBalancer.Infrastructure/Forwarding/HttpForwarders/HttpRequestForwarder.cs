@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Proxy_LoadBalancer.Infrastructure.Health;
+using Proxy_LoadBalancer.Infrastructure.Options;
 using Proxy_LoadBalancer.Infrastructure.Routing;
 using System.Net.Http.Headers;
 
@@ -15,11 +16,11 @@ namespace Proxy_LoadBalancer.Infrastructure.Forwarding.HttpForwarders
             _factory = factory;
             _healthTracker = healthTracker;
         }
-        public async Task<HttpResponseMessage> ForwardAsync(HttpContext context, ResolvedRoute resolvedRoute, CancellationToken ct)
+        public async Task<HttpResponseMessage> ForwardAsync(HttpContext context, ResolvedRoute resolvedRoute, DestinationOption destination, CancellationToken ct)
         {
-            var destination = resolvedRoute.Cluster.Destinations.First();
+            // already filtered routes, getting destination after health check and load balancer
             // build destination url
-            var FullUrl = BuildDestinationUri(context, resolvedRoute);
+            var FullUrl = BuildDestinationUri(context, resolvedRoute, destination);
 
             // outgoing request
             var req = CreateForwardRequest(context, FullUrl);
@@ -28,9 +29,8 @@ namespace Proxy_LoadBalancer.Infrastructure.Forwarding.HttpForwarders
             // forward http request to destination
             var client = _factory.CreateClient("proxy");
 
-            Console.WriteLine($"{destination.Address} health state is: {_healthTracker.IsHealthy(destination.Address)}");
             // with health check
-            // 3 failures, servuce is tracked as unhealthy
+            // 3 failures, service is tracked as unhealthy
             try
             {
                 var res = await client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
@@ -54,9 +54,9 @@ namespace Proxy_LoadBalancer.Infrastructure.Forwarding.HttpForwarders
             }
         }
 
-        private Uri BuildDestinationUri(HttpContext context, ResolvedRoute resolvedRoute)
+        private Uri BuildDestinationUri(HttpContext context, ResolvedRoute resolvedRoute, DestinationOption destination)
         {
-            var baseUri = new Uri(resolvedRoute.Cluster.Destinations.First().Address);
+            var baseUri = new Uri(destination.Address);
 
             var path = context.Request.Path.Value ?? "";
             var query = context.Request.QueryString.Value ?? "";
