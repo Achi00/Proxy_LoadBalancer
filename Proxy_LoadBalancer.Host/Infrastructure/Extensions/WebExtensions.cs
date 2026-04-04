@@ -10,6 +10,13 @@ namespace Proxy_LoadBalancer.Host.Infrastructure.Extensions
             // checking mismatch on startup so it blows before http request
             services.AddOptions<ProxyOption>()
                 .Bind(configuration.GetSection("Proxy"))
+                .PostConfigure(options =>
+                {
+                    foreach (var (key, cluster) in options.Clusters)
+                    {
+                        cluster.Id = key;
+                    }
+                })
                 .Validate(options =>
                 {
                     foreach (var cluster in options.Clusters.Values)

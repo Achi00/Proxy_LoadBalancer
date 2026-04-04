@@ -13,12 +13,13 @@ namespace Proxy_LoadBalancer.Host.Middleware
         private readonly ILoadBalancer _loadBalancer;
         private readonly PassiveHealthTracker _healthTracker;
 
-        public ProxyMiddleware(ConfigRouteResolver routeResolver, HttpRequestForwarder requestForwarder, HttpResponseForwarder responseForwarder, ILoadBalancer loadBalancer)
+        public ProxyMiddleware(ConfigRouteResolver routeResolver, HttpRequestForwarder requestForwarder, HttpResponseForwarder responseForwarder, ILoadBalancer loadBalancer, PassiveHealthTracker healthTracker)
         {
             _routeResolver = routeResolver;
             _responseForwarder = responseForwarder;
             _requestForwarder = requestForwarder;
             _loadBalancer = loadBalancer;
+            _healthTracker = healthTracker;
         }
 
         /*

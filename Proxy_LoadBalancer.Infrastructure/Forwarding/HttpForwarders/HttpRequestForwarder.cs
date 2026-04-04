@@ -20,7 +20,7 @@ namespace Proxy_LoadBalancer.Infrastructure.Forwarding.HttpForwarders
         {
             // already filtered routes, getting destination after health check and load balancer
             // build destination url
-            var FullUrl = BuildDestinationUri(context, resolvedRoute);
+            var FullUrl = BuildDestinationUri(context, resolvedRoute, destination);
 
             // outgoing request
             var req = CreateForwardRequest(context, FullUrl);
@@ -55,9 +55,9 @@ namespace Proxy_LoadBalancer.Infrastructure.Forwarding.HttpForwarders
             }
         }
 
-        private Uri BuildDestinationUri(HttpContext context, ResolvedRoute resolvedRoute)
+        private Uri BuildDestinationUri(HttpContext context, ResolvedRoute resolvedRoute, DestinationOption destination)
         {
-            var baseUri = new Uri(resolvedRoute.Cluster.Destinations.First().Address);
+            var baseUri = new Uri(destination.Address);
 
             var path = context.Request.Path.Value ?? "";
             var query = context.Request.QueryString.Value ?? "";
