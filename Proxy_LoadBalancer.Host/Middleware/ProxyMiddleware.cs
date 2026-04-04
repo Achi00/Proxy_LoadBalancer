@@ -40,18 +40,49 @@ namespace Proxy_LoadBalancer.Host.Middleware
                 return;
             }
 
-            // load balancer
-            var destination = _loadBalancer.SelectDestination(resolvedRoute.Cluster, _healthTracker);
-            if (destination is null) 
-            { 
-                context.Response.StatusCode = 503; 
-                return; 
-            }
-            // forward request with resolved route
-            var response = await _requestForwarder.ForwardAsync(context, resolvedRoute, destination, ct);
+            // load balancer, if any destination port is down we will distribute it to another healthy destination
+            var attempts = resolvedRoute.Cluster.Destinations.Count;
 
-            // forward response
-            await _responseForwarder.ForwardAsync(context, response, ct);
+            for (int i = 0; i < attempts; i++)
+            {
+                var destination = _loadBalancer.SelectDestination(resolvedRoute.Cluster, _healthTracker);
+                if (destination is null) { context.Response.StatusCode = 503; return; }
+
+                try
+                {
+                    var response = await _requestForwarder.ForwardAsync(context, resolvedRoute, destination, ct);
+                    await _responseForwarder.ForwardAsync(context, response, ct);
+
+                    return;
+                }
+                catch (HttpRequestException)
+                {
+                    // already marked unhealthy in forwarder
+                    // if no more destinations will mark as error 502
+                    var hasHealthy = resolvedRoute.Cluster.Destinations
+                        .Any(d => _healthTracker.IsHealthy(d.Address));
+
+                    // in case no healthy route found
+                    if (!hasHealthy) break;
+
+                    // only retry idempotent methods, for safety avoid POST, PUT and ect requests
+                    if (!IsIdempotent(context.Request.Method)) break;
+
+                    Console.WriteLine(destination.Address + " is unreachable");
+                }
+            }
+
+            context.Response.StatusCode = 502;
+            //// forward request with resolved route
+            //var response = await _requestForwarder.ForwardAsync(context, resolvedRoute, destination, ct);
+
+            //// forward response
+            //await _responseForwarder.ForwardAsync(context, response, ct);
         }
+
+        private static bool IsIdempotent(string method) =>
+            method.Equals("GET", StringComparison.OrdinalIgnoreCase) ||
+            method.Equals("HEAD", StringComparison.OrdinalIgnoreCase) ||
+            method.Equals("OPTIONS", StringComparison.OrdinalIgnoreCase);
     }
 }
