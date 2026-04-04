@@ -18,6 +18,10 @@ namespace Proxy_LoadBalancer.Host.Infrastructure.Extensions
             int perAttemptTimeoutSeconds = 10,
             int absoluteTimeoutSeconds = 25)
         {
+            // Get logger factory from services
+            var loggerFactory = builder.Services.BuildServiceProvider().GetRequiredService<ILoggerFactory>();
+            var logger = loggerFactory.CreateLogger("ProxyHttpClient");
+
             builder.ConfigureHttpClient(client =>
                 {
                     client.Timeout = TimeSpan.FromSeconds(absoluteTimeoutSeconds + 5);
@@ -56,9 +60,11 @@ namespace Proxy_LoadBalancer.Host.Infrastructure.Extensions
                                 var uri = args.Outcome.Result?.RequestMessage?.RequestUri;
                                 var reason = args.Outcome.Exception?.GetType().Name
                                           ?? $"{(int)args.Outcome.Result!.StatusCode}";
-                                // TODO: inject and use ILogger properly
-                                Console.WriteLine(
-                                    $"[Retry {args.AttemptNumber}] {method} {uri} — {reason}");
+                                // logging
+                                logger.LogWarning(
+                                   "Retry attempt {RetryAttempt} for {Method} {Uri} — Reason: {Reason}",
+                                   args.AttemptNumber, method, uri, reason);
+
                                 return ValueTask.CompletedTask;
                             }
                         })

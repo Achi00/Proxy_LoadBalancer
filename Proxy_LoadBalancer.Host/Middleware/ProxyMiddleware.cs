@@ -22,9 +22,6 @@ namespace Proxy_LoadBalancer.Host.Middleware
             _healthTracker = healthTracker;
         }
 
-        /*
-         *  TODO: make proxy error logs saveable in file
-         */
         public async Task InvokeAsync(HttpContext context, RequestDelegate next)
         {
             // tied to client connection
@@ -63,12 +60,16 @@ namespace Proxy_LoadBalancer.Host.Middleware
                         .Any(d => _healthTracker.IsHealthy(d.Address));
 
                     // in case no healthy route found
-                    if (!hasHealthy) break;
+                    if (!hasHealthy)
+                    {
+                        break;
+                    }
 
                     // only retry idempotent methods, for safety avoid POST, PUT and ect requests
-                    if (!IsIdempotent(context.Request.Method)) break;
-
-                    Console.WriteLine(destination.Address + " is unreachable");
+                    if (!IsIdempotent(context.Request.Method))
+                    {
+                        break;
+                    }
                 }
             }
 

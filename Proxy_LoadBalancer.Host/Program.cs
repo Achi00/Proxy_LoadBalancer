@@ -19,6 +19,8 @@ builder.Services
     //   })
     .AddProxyResiliencePolicy(perAttemptTimeoutSeconds: 10, absoluteTimeoutSeconds: 25);
 
+builder.Host.AddSerilogConfig();
+
 builder.Services.AddSingleton<ProxyMiddleware>();
 builder.Services.AddSingleton<ConfigRouteResolver>();
 builder.Services.AddSingleton<HttpRequestForwarder>();
