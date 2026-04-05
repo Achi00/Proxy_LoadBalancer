@@ -60,7 +60,7 @@ namespace Proxy_LoadBalancer.Infrastructure.Health
         {
             try
             {
-                var client = _factory.CreateClient("proxy");
+                var client = _factory.CreateClient("health-check");
                 // set default /health if no explicit path defined in configs
                 var url = destination.Address.TrimEnd('/') + (healthCheck.Path ?? "/health");
                 var response = await client.GetAsync(url, ct);
