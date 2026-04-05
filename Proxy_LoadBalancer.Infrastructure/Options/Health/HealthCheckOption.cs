@@ -2,10 +2,8 @@
 {
     public class HealthCheckOption
     {
-        public string Path { get; set; }
-        public int IntervalSeconds { get; set; }
-        public int TimeoutSeconds { get; set; }
-        public int UnhealthyThreshold { get; set; }
-        public int HealthyThreshold { get; set; }
+        public bool Enabled { get; set; } = true;
+        public int IntervalSeconds { get; set; } = 10;
+        public string Path { get; set; } = "/health";
     }
 }

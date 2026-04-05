@@ -12,15 +12,16 @@ namespace Proxy_LoadBalancer.Infrastructure.LoadBalancer.Strategy
             var weighted = servers
                 .SelectMany(s => Enumerable.Repeat(s, GetWeight(s)))
                 .ToList();
-            var index = Interlocked.Increment(ref _currentIndex);
             // with modulo op wrap around to the start of the list
             // Math.Abs handles negative overflow case
-            return servers[Math.Abs(index % servers.Count)];
+            var index = (int)(Interlocked.Increment(ref _currentIndex) % (uint)weighted.Count);
+
+            return weighted[index];
         }
 
         private int GetWeight(DestinationOption options)
         {
-            return options.Weight ?? 0;
+            return options.Weight ?? 1;
         }
     }
 }

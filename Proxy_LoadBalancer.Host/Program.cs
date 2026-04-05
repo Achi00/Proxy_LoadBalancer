@@ -19,6 +19,17 @@ builder.Services
     //   })
     .AddProxyResiliencePolicy(perAttemptTimeoutSeconds: 10, absoluteTimeoutSeconds: 25);
 
+builder.Services
+    .AddHttpClient("health-check", client =>
+    {
+        client.Timeout = TimeSpan.FromSeconds(3);
+    })
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+    {
+        ServerCertificateCustomValidationCallback =
+            HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+    });
+
 builder.Host.AddSerilogConfig();
 
 builder.Services.AddSingleton<ProxyMiddleware>();
@@ -26,7 +37,7 @@ builder.Services.AddSingleton<ConfigRouteResolver>();
 builder.Services.AddSingleton<HttpRequestForwarder>();
 builder.Services.AddSingleton<HttpResponseForwarder>();
 builder.Services.AddSingleton<PassiveHealthTracker>();
-
+builder.Services.AddHostedService<ActiveHealthCheckWorker>();
 
 var app = builder.Build();
 
