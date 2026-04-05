@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Proxy_LoadBalancer.Infrastructure.Options;
+using Proxy_LoadBalancer.Infrastructure.Options.Health;
 
 namespace Proxy_LoadBalancer.Infrastructure.Health
 {
@@ -23,74 +24,63 @@ namespace Proxy_LoadBalancer.Infrastructure.Health
             _options = options;
             _logger = logger;
         }
-        
+
         protected override async Task ExecuteAsync(CancellationToken ct)
         {
-            _logger.LogInformation("Active health check worker started");
-            
             while (!ct.IsCancellationRequested)
             {
-                try
+                foreach (var cluster in _options.Value.Clusters.Values)
                 {
-                    foreach (var cluster in _options.Value.Clusters.Values)
+                    // resolve health check config
+                    var healthCheck = cluster.HealthCheck ?? _options.Value.Defaults?.HealthCheck;
+
+                    // skip if no health check is enabled
+                    if (healthCheck?.Enabled != true)
                     {
-                        foreach (var destination in cluster.Destinations)
-                        {
-                            foreach (var route in _options.Value.Routes.Where(r => r.ClusterId == cluster.Id))
-                            {
-                                await ProbeAsync(destination, route, ct);
-                            }
-                        }
+                        continue;
                     }
 
-                    var delaySeconds = _options.Value.Routes
-                        .Where(r => _options.Value.Clusters.Values.Any(c => c.Id == r.ClusterId))
-                        .Min(r => r.HealthCheck.IntervalSeconds);
+                    foreach (var destination in cluster.Destinations)
+                    {
+                        await ProbeAsync(destination, healthCheck, ct);
+                    }
+                }
 
-                    await Task.Delay(TimeSpan.FromSeconds(delaySeconds), ct);
-                }
-                catch (OperationCanceledException)
-                {
-                    _logger.LogInformation("Active health check worker stopped");
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Unexpected error in health check worker");
-                }
+                // get active check interval from config file
+                var interval = _options.Value.Clusters.Values
+                    .Select(c => c.HealthCheck ?? _options.Value.Defaults?.HealthCheck)
+                    .Where(h => h?.Enabled == true)
+                    .Min(h => h?.IntervalSeconds ?? 10);
+
+                await Task.Delay(TimeSpan.FromSeconds(interval), ct);
             }
         }
 
-        private async Task ProbeAsync(DestinationOption destination, RouteOption route, CancellationToken ct)
+        private async Task ProbeAsync(DestinationOption destination, HealthCheckOption healthCheck, CancellationToken ct)
         {
             try
             {
                 var client = _factory.CreateClient("proxy");
-                var url = destination.Address + route.HealthCheck.Path;
-                
+                // set default /health if no explicit path defined in configs
+                var url = destination.Address.TrimEnd('/') + (healthCheck.Path ?? "/health");
                 var response = await client.GetAsync(url, ct);
-                
+
                 if (response.IsSuccessStatusCode)
                 {
                     _healthTracker.RecordSuccess(destination.Address);
-                    _logger.LogInformation(
-                        "Health probe {Address}: {Status}", 
-                        destination.Address, 
-                        "healthy");
+                    _logger.LogInformation("Health probe {Address}: healthy", destination.Address);
                 }
                 else
                 {
                     _healthTracker.RecordFailure(destination.Address);
-                    _logger.LogWarning(
-                        "Health probe {Address}: {Status} (HTTP {StatusCode})", 
-                        destination.Address, 
-                        "unhealthy",
-                        response.StatusCode);
+                    _logger.LogWarning("Health probe {Address}: unhealthy (HTTP {StatusCode})",
+                        destination.Address, response.StatusCode);
                 }
             }
             catch (Exception ex)
             {
                 _healthTracker.RecordFailure(destination.Address);
-                _logger.LogError(ex, "Health probe {Address}: {Status}", destination.Address, "failed");
+                _logger.LogError(ex, $"Health probe {destination.Address}: failed");
             }
         }
     }
