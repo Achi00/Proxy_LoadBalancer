@@ -29,7 +29,12 @@ namespace Proxy_LoadBalancer.Infrastructure.Health
                         }
                     }
                 }
-                await Task.Delay(TimeSpan.FromSeconds(10), ct);
+
+                var delaySeconds = _options.Routes
+                    .Where(r => _options.Clusters.Values.Any(c => c.Id == r.ClusterId))
+                    .Min(r => r.HealthCheck.IntervalSeconds);
+
+                await Task.Delay(TimeSpan.FromSeconds(delaySeconds), ct);
             }
         }
 

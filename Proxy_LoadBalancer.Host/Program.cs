@@ -26,7 +26,7 @@ builder.Services.AddSingleton<ConfigRouteResolver>();
 builder.Services.AddSingleton<HttpRequestForwarder>();
 builder.Services.AddSingleton<HttpResponseForwarder>();
 builder.Services.AddSingleton<PassiveHealthTracker>();
-
+builder.Services.AddHostedService<ActiveHealthCheckWorker>();
 
 var app = builder.Build();
 
