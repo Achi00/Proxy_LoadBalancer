@@ -68,17 +68,29 @@ namespace Proxy_LoadBalancer.Infrastructure.Health
                 if (response.IsSuccessStatusCode)
                 {
                     _healthTracker.RecordSuccess(destination.Address);
-                    _logger.LogInformation("Health probe {Address}: healthy", destination.Address);
+                    _logger.LogInformation($"Health probe {destination.Address}: healthy");
                 }
                 else
                 {
                     _healthTracker.RecordFailure(destination.Address);
-                    _logger.LogWarning("Health probe {Address}: unhealthy (HTTP {StatusCode})",
-                        destination.Address, response.StatusCode);
+                    _logger.LogWarning($"Health probe {destination.Address}: unhealthy (HTTP {response.StatusCode})");
                 }
+            }
+            catch (TaskCanceledException)
+            {
+                // triggered by timeout, expected error
+                _healthTracker.RecordFailure(destination.Address);
+                _logger.LogWarning($"Health probe {destination.Address}: timed out — marked unhealthy");
+            }
+            catch (HttpRequestException ex)
+            {
+                // connection refused or unreachable
+                _healthTracker.RecordFailure(destination.Address);
+                _logger.LogWarning($"Health probe {destination.Address}: unreachable — {ex.Message}");
             }
             catch (Exception ex)
             {
+                // unexpected err
                 _healthTracker.RecordFailure(destination.Address);
                 _logger.LogError(ex, $"Health probe {destination.Address}: failed");
             }
