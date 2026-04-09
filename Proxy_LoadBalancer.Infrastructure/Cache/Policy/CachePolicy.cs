@@ -1,5 +1,4 @@
 ﻿using Microsoft.AspNetCore.Http;
-using System.Net;
 
 namespace Proxy_LoadBalancer.Infrastructure.Cache.Policy
 {
@@ -37,7 +36,7 @@ namespace Proxy_LoadBalancer.Infrastructure.Cache.Policy
         public bool IsRequestCacheable(HttpContext context)
         {
             // is method chachable
-            if (context.Request.Method != HttpMethod.Get.ToString() || context.Request.Method != HttpMethod.Head.ToString())
+            if (context.Request.Method != HttpMethod.Get.ToString() && context.Request.Method != HttpMethod.Head.ToString())
             {
                 return false;
             }
@@ -55,11 +54,21 @@ namespace Proxy_LoadBalancer.Infrastructure.Cache.Policy
 
         public bool IsResponseCacheable(HttpContext context, HttpResponseMessage response)
         {
-            // is status compatible
-            //if (!IsRelevantStatus(context.Request.StatusCode))
-            //{
-            //    return false;
-            //}
+            // check response status
+            if (!IsRelevantStatus((int)response.StatusCode))
+            {
+                return false;
+            }
+
+            // check headers
+            // if explicitly denies cache
+            if (context.Response.Headers.TryGetValue("Cache-Control", out var value) && (value == "no-store" || value == "private"))
+            {
+                // check cache control valies
+                // revalidate value == "no-cache"
+                return false;
+            }
+            return true;
         }
 
         // check status code if compitable on caching
