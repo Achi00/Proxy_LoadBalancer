@@ -40,13 +40,22 @@ namespace Proxy_LoadBalancer.Infrastructure.Cache.Policy
             {
                 return false;
             }
-            
+
             // if explicitly denies cache
-            if (context.Request.Headers.TryGetValue("Cache-Control", out var value) && value == "no-store")
+            //if (context.Request.Headers.TryGetValue("Cache-Control", out var value) && value == "no-store")
+            if (context.Request.Headers.TryGetValue("Cache-Control", out var value))
             {
-                // check cache control valies
-                // revalidate value == "no-cache"
-                return false;
+                var directives = value.ToString().Split(',').Select(d => d.Trim());
+
+                if (directives.Contains("no-store", StringComparer.OrdinalIgnoreCase))
+                {
+                    return false;
+                }
+
+                if (directives.Contains("no-cache", StringComparer.OrdinalIgnoreCase))
+                {
+                    return false;
+                }
             }
 
             return true;
@@ -62,19 +71,28 @@ namespace Proxy_LoadBalancer.Infrastructure.Cache.Policy
 
             // check headers
             // if explicitly denies cache
-            if (context.Response.Headers.TryGetValue("Cache-Control", out var value) && (value == "no-store" || value == "private"))
+            if (response.Headers.TryGetValues("Cache-Control", out var values))
             {
-                // check cache control valies
-                // revalidate value == "no-cache"
-                return false;
+                var directives = values
+                    .SelectMany(v => v.Split(','))
+                    .Select(d => d.Trim());
+
+                if (directives.Contains("no-store", StringComparer.OrdinalIgnoreCase) ||
+                    directives.Contains("private", StringComparer.OrdinalIgnoreCase))
+                {
+                    return false;
+                }
             }
+
             return true;
         }
 
         // check status code if compitable on caching
         private bool IsRelevantStatus(int statusCode) => (statusCode >= 200 && statusCode <= 299)
             || statusCode == 301
-            || statusCode == 308;
+            || statusCode == 308
+            || statusCode == 404
+            || statusCode == 410;
 
         private TimeSpan? ParseCacheControlTtl(IEnumerable<string> cacheControlValues)
         {
@@ -130,5 +148,10 @@ namespace Proxy_LoadBalancer.Infrastructure.Cache.Policy
 
             return null;
         }
+
+        private static IEnumerable<string> ParseDirectives(IEnumerable<string> headerValues)
+            => headerValues
+                .SelectMany(v => v.Split(','))
+                .Select(d => d.Trim());
     }
 }
