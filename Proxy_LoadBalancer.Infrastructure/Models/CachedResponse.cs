@@ -18,6 +18,9 @@
 
         public DateTimeOffset CachedAt { get; init; }
 
+        // vary headers support
         public string[] VaryHeaderNames { get; init; } = [];
+        public Dictionary<string, string> VaryValues = new();
+
     }
 }

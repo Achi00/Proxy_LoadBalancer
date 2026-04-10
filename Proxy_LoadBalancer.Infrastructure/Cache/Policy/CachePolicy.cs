@@ -95,6 +95,20 @@ namespace Proxy_LoadBalancer.Infrastructure.Cache.Policy
             return true;
         }
 
+        // handle very headers fro response
+        public string[] GetVaryHeaders(HttpResponseMessage response)
+        {
+            if (!response.Headers.TryGetValues("Vary", out var values))
+                return Array.Empty<string>();
+
+            // "Accept-Encoding, Accept-Language"
+            return values
+                .SelectMany(v => v.Split(','))
+                .Select(v => v.Trim())
+                .Where(v => !string.IsNullOrEmpty(v))
+                .ToArray();
+        }
+
         // check status code if compitable on caching
         private bool IsRelevantStatus(int statusCode) => (statusCode >= 200 && statusCode <= 299)
             || statusCode == 301
@@ -156,10 +170,5 @@ namespace Proxy_LoadBalancer.Infrastructure.Cache.Policy
 
             return null;
         }
-
-        private static IEnumerable<string> ParseDirectives(IEnumerable<string> headerValues)
-            => headerValues
-                .SelectMany(v => v.Split(','))
-                .Select(d => d.Trim());
     }
 }

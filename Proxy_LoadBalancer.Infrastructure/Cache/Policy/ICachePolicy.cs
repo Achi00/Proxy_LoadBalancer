@@ -8,5 +8,6 @@ namespace Proxy_LoadBalancer.Infrastructure.Cache.Policy
         bool IsRequestCacheable(HttpContext context);
         bool IsResponseCacheable(HttpResponseMessage response);
         bool MustRevalidate(HttpContext context);
+        string[] GetVaryHeaders(HttpResponseMessage response);
     }
 }
