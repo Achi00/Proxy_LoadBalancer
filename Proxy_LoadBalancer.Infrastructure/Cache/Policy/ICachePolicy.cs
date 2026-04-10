@@ -4,8 +4,9 @@ namespace Proxy_LoadBalancer.Infrastructure.Cache.Policy
 {
     public interface ICachePolicy
     {
-        bool IsRequestCacheable(HttpContext context);
-        bool IsResponseCacheable(HttpContext context, HttpResponseMessage response);
         TimeSpan? GetTtl(HttpResponseMessage response);
+        bool IsRequestCacheable(HttpContext context);
+        bool IsResponseCacheable(HttpResponseMessage response);
+        bool MustRevalidate(HttpContext context);
     }
 }

@@ -5,7 +5,7 @@ namespace Proxy_LoadBalancer.Infrastructure.Cache.Policy
     public class CachePolicy : ICachePolicy
     {
         // 5 minutes as default
-        private const int DefaultCacheTtlSeconds = 300; 
+        private const int DefaultCacheTtlSeconds = 300;
 
         public TimeSpan? GetTtl(HttpResponseMessage response)
         {
@@ -52,16 +52,24 @@ namespace Proxy_LoadBalancer.Infrastructure.Cache.Policy
                     return false;
                 }
 
-                if (directives.Contains("no-cache", StringComparer.OrdinalIgnoreCase))
-                {
-                    return false;
-                }
+                // no-cache is cacheble but needs revalidation
             }
 
             return true;
         }
 
-        public bool IsResponseCacheable(HttpContext context, HttpResponseMessage response)
+        // revalidation of headers, seperate method to explicitly call in cache middleware in certain conditions
+        public bool MustRevalidate(HttpContext context)
+        {
+            if (context.Request.Headers.TryGetValue("Cache-Control", out var value))
+            {
+                var directives = value.ToString().Split(',').Select(d => d.Trim());
+                return directives.Contains("no-cache", StringComparer.OrdinalIgnoreCase);
+            }
+            return false;
+        }
+
+        public bool IsResponseCacheable(HttpResponseMessage response)
         {
             // check response status
             if (!IsRelevantStatus((int)response.StatusCode))
