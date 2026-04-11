@@ -10,13 +10,20 @@ namespace Proxy_LoadBalancer.Host.Middleware
         private readonly ICachePolicy _cachePolicy;
         private readonly IResponseCacheStore _store;
         private readonly ICacheKeyProvider _keyProvider;
+        private readonly ILogger<ResponseCacheMiddleware> _logger;
 
 
-        public ResponseCacheMiddleware(ICachePolicy cachePolicy, IResponseCacheStore store, ICacheKeyProvider keyProvider)
+        public ResponseCacheMiddleware(
+            ICachePolicy cachePolicy, 
+            IResponseCacheStore store, 
+            ICacheKeyProvider keyProvider,
+            ILogger<ResponseCacheMiddleware> logger
+        )
         {
             _cachePolicy = cachePolicy;
             _store = store;
             _keyProvider = keyProvider;
+            _logger = logger;
         }
         public async Task InvokeAsync(HttpContext context, RequestDelegate next)
         {
@@ -32,10 +39,10 @@ namespace Proxy_LoadBalancer.Host.Middleware
 
             var mustRevalidate = _cachePolicy.MustRevalidate(context);
 
-            if (!mustRevalidate && _store.TryGet(key, out var cached))
+            if (!mustRevalidate && _store.TryGet(key, out var cached) && cached is not null)
             {
                 // cache was hit, write stored response directly to client
-                await WriteCachedResponseAsync(context, cached!);
+                await WriteCachedResponseAsync(context, cached);
                 return;
             }
 
@@ -67,6 +74,8 @@ namespace Proxy_LoadBalancer.Host.Middleware
                     };
 
                     _store.Set(key, entry, ttl);
+                    // DEBUG
+                    _logger.LogInformation($"Cache STORED for {context.Request.Path}");
                 }
             }
             finally
@@ -80,6 +89,9 @@ namespace Proxy_LoadBalancer.Host.Middleware
 
         private async Task WriteCachedResponseAsync(HttpContext context, CachedResponse cached)
         {
+            // DEBUG
+            _logger.LogInformation($"Cache HIT for {context.Request.Path}");
+
             context.Response.StatusCode = cached.StatusCode;
 
             foreach (var (key, values) in cached.Headers)

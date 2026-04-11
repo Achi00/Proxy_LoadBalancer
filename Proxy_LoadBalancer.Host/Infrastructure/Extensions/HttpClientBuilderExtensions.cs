@@ -22,6 +22,8 @@ namespace Proxy_LoadBalancer.Host.Infrastructure.Extensions
             var loggerFactory = builder.Services.BuildServiceProvider().GetRequiredService<ILoggerFactory>();
             var logger = loggerFactory.CreateLogger("ProxyHttpClient");
 
+            builder.Services.AddMemoryCache();
+
             builder.ConfigureHttpClient(client =>
                 {
                     client.Timeout = TimeSpan.FromSeconds(absoluteTimeoutSeconds + 5);

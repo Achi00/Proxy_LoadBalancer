@@ -1,5 +1,8 @@
 using Proxy_LoadBalancer.Host.Infrastructure.Extensions;
 using Proxy_LoadBalancer.Host.Middleware;
+using Proxy_LoadBalancer.Infrastructure.Cache;
+using Proxy_LoadBalancer.Infrastructure.Cache.Key;
+using Proxy_LoadBalancer.Infrastructure.Cache.Policy;
 using Proxy_LoadBalancer.Infrastructure.Forwarding.HttpForwarders;
 using Proxy_LoadBalancer.Infrastructure.Health;
 using Proxy_LoadBalancer.Infrastructure.Routing;
@@ -38,6 +41,12 @@ builder.Services.AddSingleton<HttpRequestForwarder>();
 builder.Services.AddSingleton<HttpResponseForwarder>();
 builder.Services.AddSingleton<PassiveHealthTracker>();
 builder.Services.AddHostedService<ActiveHealthCheckWorker>();
+builder.Services.AddTransient<ResponseCacheMiddleware>();
+
+builder.Services.AddTransient<ICachePolicy, CachePolicy>();
+builder.Services.AddTransient<ICacheKeyProvider, KeyProvider>();
+builder.Services.AddTransient<IResponseCacheStore, MemoryResponseCacheStore>();
+builder.Services.AddTransient<ResponseCacheMiddleware>();
 
 var app = builder.Build();
 

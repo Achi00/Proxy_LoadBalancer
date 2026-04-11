@@ -7,6 +7,11 @@ namespace Proxy_LoadBalancer.Infrastructure.Cache
     {
         private readonly IMemoryCache _cache;
 
+        public MemoryResponseCacheStore(IMemoryCache cache)
+        {
+            _cache = cache;
+        }
+
         public void Remove(string key)
         {
             throw new NotImplementedException();
