@@ -7,10 +7,10 @@ namespace Proxy_LoadBalancer.Infrastructure.Cache.Policy
         // 5 minutes as default
         private const int DefaultCacheTtlSeconds = 300;
 
-        public TimeSpan? GetTtl(HttpResponseMessage response)
+        public TimeSpan? GetTtl(HttpResponse response)
         {
-            // Check Cache-Control header (preferred, most common)
-            if (response.Headers.TryGetValues("Cache-Control", out var cacheControlValues))
+            
+            if (response.Headers.TryGetValue("Cache-Control", out var cacheControlValues))
             {
                 var ttl = ParseCacheControlTtl(cacheControlValues);
                 if (ttl.HasValue)
@@ -20,7 +20,7 @@ namespace Proxy_LoadBalancer.Infrastructure.Cache.Policy
             }
 
             // Fallback to Expires header
-            if (response.Content.Headers.TryGetValues("Expires", out var expiresValues))
+            if (response.Headers.TryGetValue("Expires", out var expiresValues))
             {
                 var ttl = ParseExpiresTtl(expiresValues);
                 if (ttl.HasValue)
@@ -69,41 +69,36 @@ namespace Proxy_LoadBalancer.Infrastructure.Cache.Policy
             return false;
         }
 
-        public bool IsResponseCacheable(HttpResponseMessage response)
+        public bool IsResponseCacheable(HttpContext context)
         {
             // check response status
-            if (!IsRelevantStatus((int)response.StatusCode))
+            if (!IsRelevantStatus((int)context.Response.StatusCode))
             {
                 return false;
             }
 
             // check headers
             // if explicitly denies cache
-            if (response.Headers.TryGetValues("Cache-Control", out var values))
+            if (context.Response.Headers.TryGetValue("Cache-Control", out var values))
             {
-                var directives = values
-                    .SelectMany(v => v.Split(','))
-                    .Select(d => d.Trim());
+                var directives = values.ToString().Split(',').Select(d => d.Trim());
 
                 if (directives.Contains("no-store", StringComparer.OrdinalIgnoreCase) ||
                     directives.Contains("private", StringComparer.OrdinalIgnoreCase))
-                {
                     return false;
-                }
             }
 
             return true;
         }
 
         // handle very headers fro response
-        public string[] GetVaryHeaders(HttpResponseMessage response)
+        public string[] GetVaryHeaders(HttpResponse response)
         {
-            if (!response.Headers.TryGetValues("Vary", out var values))
+            if (!response.Headers.TryGetValue("Vary", out var values))
                 return Array.Empty<string>();
 
             // "Accept-Encoding, Accept-Language"
-            return values
-                .SelectMany(v => v.Split(','))
+            return values.ToString().Split(',')
                 .Select(v => v.Trim())
                 .Where(v => !string.IsNullOrEmpty(v))
                 .ToArray();

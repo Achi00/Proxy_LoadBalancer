@@ -36,29 +36,54 @@ namespace Proxy_LoadBalancer.Host.Middleware
                 return;
             }
 
-            // very headers are optional
+            // generate cache key, very headers are optional
             var key = _keyProvider.GenerateKey(context);
 
-            if (_store.TryGet(key, out var cached))
+            var mustRevalidate = _cachePolicy.MustRevalidate(context);
+
+            if (!mustRevalidate && _store.TryGet(key, out var cached))
             {
-                await WriteCachedResponse(context, cached);
+                // cache was hit, write stored response directly to client
+                await WriteCachedResponseAsync(context, cached!);
                 return;
             }
+
+            // cache miss
+
 
             // capture response
             var originalBody = context.Response.Body;
             using var memoryStream = new MemoryStream();
             context.Response.Body = memoryStream;
 
+            // forward to upstream
             await next(context);
-            
-            // restore body
+
+            // check if we should store this response
+            if (_cachePolicy.IsResponseCacheable(context))
+            {
+                var ttl = _cachePolicy.GetTtl(context.Response) ?? TimeSpan.FromSeconds(300);
+                var body = memoryStream.ToArray();
+
+                var entry = new CachedResponse
+                {
+                    StatusCode = context.Response.StatusCode,
+                    Headers = GetCacheableHeaders(context.Response.Headers),
+                    Body = body,
+                    CachedAt = DateTimeOffset.UtcNow
+                };
+
+                _store.Set(key, entry, ttl);
+            }
+            // copy buffered body to response stream
+            memoryStream.Position = 0;
+            await memoryStream.CopyToAsync(originalBody);
             context.Response.Body = originalBody;
 
             // response part
         }
 
-        private async Task WriteCachedResponse(HttpContext context, CachedResponse cached)
+        private async Task WriteCachedResponseAsync(HttpContext context, CachedResponse cached)
         {
             context.Response.StatusCode = 200;
 
@@ -68,6 +93,20 @@ namespace Proxy_LoadBalancer.Host.Middleware
         {
             memory.Position = 0;
             await memory.CopyToAsync(original);
+        }
+
+        private static Dictionary<string, string[]> GetCacheableHeaders(IHeaderDictionary headers)
+        {
+            var headersToCache = new[]
+            {
+                "Content-Type", "Content-Encoding", "Content-Length",
+                "ETag", "Last-Modified", "Cache-Control",
+                "Expires", "Vary", "Location"
+            };
+
+            return headers
+                .Where(h => headersToCache.Contains(h.Key, StringComparer.OrdinalIgnoreCase))
+                .ToDictionary(h => h.Key, h => h.Value.ToArray());
         }
     }
 }
