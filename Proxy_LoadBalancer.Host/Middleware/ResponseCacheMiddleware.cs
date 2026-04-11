@@ -17,22 +17,20 @@ namespace Proxy_LoadBalancer.Host.Middleware
         private readonly ICachePolicy _cachePolicy;
         private readonly IResponseCacheStore _store;
         private readonly ICacheKeyProvider _keyProvider;
-        private readonly RequestDelegate _next;
 
 
-        public ResponseCacheMiddleware(ICachePolicy cachePolicy, IResponseCacheStore store, ICacheKeyProvider keyProvider, RequestDelegate next)
+        public ResponseCacheMiddleware(ICachePolicy cachePolicy, IResponseCacheStore store, ICacheKeyProvider keyProvider)
         {
             _cachePolicy = cachePolicy;
             _store = store;
             _keyProvider = keyProvider;
-            _next = next;
         }
         public async Task InvokeAsync(HttpContext context, RequestDelegate next)
         {
             // checks if requets is cachable
             if (!_cachePolicy.IsRequestCacheable(context))
             {
-                await _next(context);
+                await next(context);
                 return;
             }
 
@@ -49,52 +47,55 @@ namespace Proxy_LoadBalancer.Host.Middleware
             }
 
             // cache miss
-
-
             // capture response
             var originalBody = context.Response.Body;
             using var memoryStream = new MemoryStream();
             context.Response.Body = memoryStream;
 
-            // forward to upstream
-            await next(context);
-
-            // check if we should store this response
-            if (_cachePolicy.IsResponseCacheable(context))
+            try
             {
-                var ttl = _cachePolicy.GetTtl(context.Response) ?? TimeSpan.FromSeconds(300);
-                var body = memoryStream.ToArray();
+                // forward to upstream
+                await next(context);
 
-                var entry = new CachedResponse
+                await context.Response.Body.FlushAsync();
+
+                // check if we should store this response
+                if (_cachePolicy.IsResponseCacheable(context))
                 {
-                    StatusCode = context.Response.StatusCode,
-                    Headers = GetCacheableHeaders(context.Response.Headers),
-                    Body = body,
-                    CachedAt = DateTimeOffset.UtcNow
-                };
+                    var ttl = _cachePolicy.GetTtl(context.Response) ?? TimeSpan.FromSeconds(300);
+                    var body = memoryStream.ToArray();
 
-                _store.Set(key, entry, ttl);
+                    var entry = new CachedResponse
+                    {
+                        StatusCode = context.Response.StatusCode,
+                        Headers = GetCacheableHeaders(context.Response.Headers),
+                        Body = body,
+                        CachedAt = DateTimeOffset.UtcNow
+                    };
+
+                    _store.Set(key, entry, ttl);
+                }
             }
-            // copy buffered body to response stream
-            memoryStream.Position = 0;
-            await memoryStream.CopyToAsync(originalBody);
-            context.Response.Body = originalBody;
-
-            // response part
+            finally
+            {
+                // copy buffered body to response stream
+                memoryStream.Position = 0;
+                await memoryStream.CopyToAsync(originalBody);
+                context.Response.Body = originalBody;
+            }
         }
 
         private async Task WriteCachedResponseAsync(HttpContext context, CachedResponse cached)
         {
-            context.Response.StatusCode = 200;
+            context.Response.StatusCode = cached.StatusCode;
 
-            await context.Response.Body.WriteAsync(cached.Body, 0, cached.Body.Length);
-        }
-        private async Task CopyToOriginalStream(Stream memory, Stream original)
-        {
-            memory.Position = 0;
-            await memory.CopyToAsync(original);
-        }
+            foreach (var (key, values) in cached.Headers)
+            {
+                context.Response.Headers[key] = values;
+            }
 
+            await context.Response.Body.WriteAsync(cached.Body);
+        }
         private static Dictionary<string, string[]> GetCacheableHeaders(IHeaderDictionary headers)
         {
             var headersToCache = new[]
@@ -106,7 +107,10 @@ namespace Proxy_LoadBalancer.Host.Middleware
 
             return headers
                 .Where(h => headersToCache.Contains(h.Key, StringComparer.OrdinalIgnoreCase))
-                .ToDictionary(h => h.Key, h => h.Value.ToArray());
+                .ToDictionary(
+                    h => h.Key,
+                    h => h.Value.Select(v => v ?? string.Empty).ToArray()
+                );
         }
     }
 }
