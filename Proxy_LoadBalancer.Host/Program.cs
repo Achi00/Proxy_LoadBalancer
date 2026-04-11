@@ -42,6 +42,7 @@ builder.Services.AddHostedService<ActiveHealthCheckWorker>();
 var app = builder.Build();
 
 app.UseMiddleware<ProxyExceptionHandlerMiddleware>();
+app.UseMiddleware<ResponseCacheMiddleware>();
 app.UseMiddleware<ProxyMiddleware>();
 
 app.MapGet("/", () => "Hello World!");

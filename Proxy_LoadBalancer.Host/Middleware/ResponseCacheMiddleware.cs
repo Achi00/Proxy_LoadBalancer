@@ -1,5 +1,4 @@
-﻿using Microsoft.AspNetCore.DataProtection.KeyManagement;
-using Proxy_LoadBalancer.Infrastructure.Cache;
+﻿using Proxy_LoadBalancer.Infrastructure.Cache;
 using Proxy_LoadBalancer.Infrastructure.Cache.Key;
 using Proxy_LoadBalancer.Infrastructure.Cache.Policy;
 using Proxy_LoadBalancer.Infrastructure.Models;
@@ -8,12 +7,6 @@ namespace Proxy_LoadBalancer.Host.Middleware
 {
     public class ResponseCacheMiddleware : IMiddleware
     {
-        // 1. Check IsRequestCacheable
-        // 2. Build key, try TryGet
-        // 3. HIT -> write cached response to HttpContext.Response, return
-        // 4. MISS -> call next (forwards to upstream)
-        // 5. Check IsResponseCacheable on the forwarded response
-        // 6. YES -> serialize body, build CachedResponse, call Set
         private readonly ICachePolicy _cachePolicy;
         private readonly IResponseCacheStore _store;
         private readonly ICacheKeyProvider _keyProvider;
