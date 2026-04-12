@@ -12,21 +12,41 @@ namespace Proxy_LoadBalancer.Host.Middleware
         private readonly HttpResponseForwarder _responseForwarder;
         private readonly ILoadBalancer _loadBalancer;
         private readonly PassiveHealthTracker _healthTracker;
+        private readonly ILogger<ProxyMiddleware> _logger;
 
-        public ProxyMiddleware(ConfigRouteResolver routeResolver, HttpRequestForwarder requestForwarder, HttpResponseForwarder responseForwarder, ILoadBalancer loadBalancer, PassiveHealthTracker healthTracker)
+        public ProxyMiddleware(ConfigRouteResolver routeResolver, HttpRequestForwarder requestForwarder, HttpResponseForwarder responseForwarder, ILoadBalancer loadBalancer, PassiveHealthTracker healthTracker, ILogger<ProxyMiddleware> logger)
         {
             _routeResolver = routeResolver;
             _responseForwarder = responseForwarder;
             _requestForwarder = requestForwarder;
             _loadBalancer = loadBalancer;
             _healthTracker = healthTracker;
+            _logger = logger;
         }
 
         public async Task InvokeAsync(HttpContext context, RequestDelegate next)
         {
             // tied to client connection
             var ct = context.RequestAborted;
-            
+
+            // generate reqeust id
+            var requestId = context.Request.Headers["X-Request-ID"].FirstOrDefault() ?? Guid.NewGuid().ToString("N");
+
+            // stamp it on the response so client can trace it
+            context.Response.Headers["X-Request-ID"] = requestId;
+
+            // include in all logs for this request
+            using var scope = _logger.BeginScope(new Dictionary<string, object>
+            {
+                ["RequestId"] = requestId
+            });
+
+            _logger.LogInformation(
+                "Incoming request: {Method} {Path} - RequestId: {RequestId}",
+                context.Request.Method,
+                context.Request.Path,
+                requestId);
+
             // resolve route
             var resolvedRoute = _routeResolver.Resolve(context);
 
